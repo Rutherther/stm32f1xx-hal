@@ -285,11 +285,21 @@ impl<CS> Rtc<CS> {
     /// Selects the frequency of the RTC Timer
     /// NOTE: Maximum frequency of 16384 Hz using the internal LSE
     pub fn select_frequency(&mut self, frequency: Hertz) {
+        self.select_precise_frequency(frequency, 0);
+    }
+
+    pub fn select_precise_frequency(&mut self, frequency: Hertz, adjustment: i32) {
         // The manual says that the zero value for the prescaler is not recommended, thus the
         // minimum division factor is 2 (prescaler + 1)
         assert!(frequency <= self.frequency / 2);
 
-        let prescaler = self.frequency / frequency - 1;
+        let mut prescaler = self.frequency / frequency - 1;
+        if adjustment > 0 {
+            prescaler += adjustment as u32;
+        } else {
+            prescaler -= (-adjustment) as u32;
+        }
+
         assert!(prescaler < 1 << 20);
         self.perform_write(|s| {
             s.regs.prlh.write(|w| unsafe { w.bits(prescaler >> 16) });
